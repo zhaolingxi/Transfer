@@ -36,6 +36,11 @@ public:
 	list<group> * group_info;//群信息
 
 	ChatDataBase *mydatabase;//数据库
+
+	bool info_group_exist(string);
+	bool info_user_in_group(string, string);
+
+	void info_group_add_user(string, string);
 public:
 	ChatInfo();
 	~ChatInfo();

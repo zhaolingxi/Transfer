@@ -3,17 +3,17 @@
 
 ChatDataBase::ChatDataBase()
 {
-	mysql = mysql_init(NULL);
 }
 
 
 ChatDataBase::~ChatDataBase()
 {
-	delete mysql;
+	mysql_close(mysql);
 }
 
 void ChatDataBase::my_database_connect(string name)
 {
+	mysql = mysql_init(NULL);
 	mysql = mysql_real_connect(mysql, "127.0.0.1", "root", "mysqlpwd", name.c_str(), 0, NULL, 0);
 	if (NULL == mysql)
 	{
@@ -24,10 +24,10 @@ void ChatDataBase::my_database_connect(string name)
 	{
 		cout << "mysql_query fail" << endl;
 	}
-	string str = "use ";
+	/*string str = "use ";
 	str += name;
 	str += ";";
-	mysql_query(mysql, str.c_str());
+	mysql_query(mysql, str.c_str());*/
 }
 
 void ChatDataBase::my_database_disconnect()
@@ -87,24 +87,14 @@ void ChatDataBase::my_database_get_gorup_member(string name, string& s)
 
 bool ChatDataBase::my_database_user_exist(string name)
 {
-	if (mysql_query(mysql, "set names utf8;") != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
-
 	char sql[128] = { 0 };
 	sprintf(sql, "show tables like '%s';", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
-
+	UseSqlCmdWithLog(sql, mysql);
 	MYSQL_RES* res = mysql_store_result(mysql);
 	if (NULL == res)
 	{
 		cout << "mysql_store_result" << endl;
 	}
-
 	MYSQL_ROW row = mysql_fetch_row(res);
 	if (NULL == row)
 	{
@@ -120,33 +110,18 @@ void ChatDataBase::my_database_user_add(string name, string password)
 {
 	char sql[128] = { 0 };
 	sprintf(sql, "create table %s (password varchar(16),friend varchar(4096),chatgroup varchar(4096)) character set utf8;", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql,mysql);
 
 	memset(sql, 0, strlen(sql));
 	sprintf(sql, "insert into %s (password) values ('%s');", name.c_str(), password.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
-
+	UseSqlCmdWithLog(sql, mysql);
 }
 
 bool ChatDataBase::my_database_user_password_correct(string name, string password)
 {
-	if (mysql_query(mysql, "set names utf8;") != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
-
 	char sql[128] = { 0 };
 	sprintf(sql, "select password from %s;", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
 
 	MYSQL_RES* res = mysql_store_result(mysql);
 	if (NULL == res)
@@ -169,10 +144,8 @@ string ChatDataBase::my_database_get_friend(string name)
 {
 	char sql[128] = { 0 };
 	sprintf(sql, "select friend from %s;", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
+
 	MYSQL_RES* res = mysql_store_result(mysql);
 	if (NULL == res)
 	{
@@ -195,10 +168,8 @@ bool ChatDataBase::my_database_is_friend(string name, string name2)
 {
 	char sql[128] = { 0 };
 	sprintf(sql, "select friend from %s;", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
+
 	MYSQL_RES* res = mysql_store_result(mysql);
 	MYSQL_ROW row = mysql_fetch_row(res);
 	if (NULL == row[0])
@@ -243,10 +214,8 @@ void ChatDataBase::my_database_add_new_friend(string name, string namefri)
 	char sql[1024] = { 0 };
 	cout << "select friend from " << name<< endl;
 	sprintf(sql, "select friend from %s;", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
+
 	MYSQL_RES* res = mysql_store_result(mysql);
 	string result;
 	MYSQL_ROW row = mysql_fetch_row(res);
@@ -273,10 +242,7 @@ bool ChatDataBase::my_database_group_exist(string name)
 {
 	char sql[128] = { 0 };
 	sprintf(sql, "show tables like '%s';", name.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
 
 	MYSQL_RES* res = mysql_store_result(mysql);
 	if (NULL == res)
@@ -299,17 +265,11 @@ void ChatDataBase::my_database_add_new_group(string groupname,string groupowner)
 {
 	char sql[128] = { 0 };
 	sprintf(sql, "create table %s (owner varchar(32), member varchar(4096)) char set utf8;", groupname.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
 
 	memset(sql, 0, sizeof(sql));
 	sprintf(sql, "insert into %s values ('%s', '%s') ;", groupname.c_str(), groupowner.c_str(), groupowner.c_str());
-	if (mysql_query(mysql, sql) != 0)
-	{
-		cout << "mysql_query fail" << endl;
-	}
+	UseSqlCmdWithLog(sql, mysql);
 
 }
 
@@ -326,7 +286,7 @@ void ChatDataBase::my_database_get_friend_group(string name, string& f, string& 
 	{
 		f.append(row[0]);
 	}
-	mysql_free_result(res);
+	//mysql_free_result(res);
 
 	memset(sql, 0, sizeof(sql));
 	sprintf(sql, "select chatgroup from %s;", name.c_str());
@@ -338,4 +298,54 @@ void ChatDataBase::my_database_get_friend_group(string name, string& f, string& 
 	{
 		g.append(row[0]);
 	}
+}
+
+void ChatDataBase::my_database_user_add_group(string username, string groupname)
+{
+	char sql[1024] = { 0 };
+	sprintf(sql, "select chatgroup from %s;", username.c_str());
+	UseSqlCmdWithLog(sql, mysql);
+
+	string all_group;
+	MYSQL_RES* res = mysql_store_result(mysql);
+	MYSQL_ROW row = mysql_fetch_row(res);
+	if (row[0] != NULL)
+	{
+		all_group += row[0];
+		all_group += "|";
+		all_group += groupname;
+	}
+	else
+	{
+		all_group += groupname;
+	}
+
+	memset(sql, 0, sizeof(sql));
+	sprintf(sql, "update %s set chatgroup = '%s';", username.c_str(), all_group.c_str());
+	UseSqlCmdWithLog(sql, mysql);
+}
+
+void ChatDataBase::my_database_group_add_user(string groupname, string username)
+{
+	char sql[1024] = { 0 };
+	sprintf(sql, "select member from %s;", groupname.c_str());
+	UseSqlCmdWithLog(sql, mysql);
+
+	string all_member;
+	MYSQL_RES* res = mysql_store_result(mysql);
+	MYSQL_ROW row = mysql_fetch_row(res);
+	if (row[0] != NULL)
+	{
+		all_member += row[0];
+		all_member += "|";
+		all_member += username;
+	}
+	else
+	{
+		all_member += username;
+	}
+
+	memset(sql, 0, sizeof(sql));
+	sprintf(sql, "update %s set member = '%s';", groupname.c_str(), all_member.c_str());
+	UseSqlCmdWithLog(sql, mysql);
 }

@@ -32,6 +32,8 @@ public:
 
 	bool my_database_group_exist(string s);
 	void my_database_add_new_group(string, string);
+	void my_database_user_add_group(string, string);
+	void my_database_group_add_user(string, string);
 
 	bool my_database_user_password_correct(string,string);
 	string my_database_get_friend(string);

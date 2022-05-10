@@ -46,6 +46,12 @@ private:
 	static void client_handler(int fd);
 
 
+	/*
+	* 回复客户端
+	*/
+	static void reply_client(struct bufferevent* bev,string replystr);
+
+
 	static void read_cb(struct bufferevent *bev, void *ctx);
 	static void event_cb(struct bufferevent *bev, short what, void *ctx);
 

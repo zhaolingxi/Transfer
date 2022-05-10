@@ -62,3 +62,47 @@ ChatInfo::ChatInfo()
 //	}
 
 }
+
+bool ChatInfo::info_group_exist(string groupname)
+{
+	for (auto iter= group_info->begin(); iter != group_info->end(); iter++)
+	{
+		if (iter->name== groupname)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool ChatInfo::info_user_in_group(string groupname, string username)
+{
+	for (auto iter = group_info->begin(); iter != group_info->end(); iter++)
+	{
+		if (iter->name == groupname)
+		{
+			for (auto iteruser = iter->l->begin(); iteruser != iter->l->end(); iteruser++)
+			{
+				if (username== iteruser->name)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+
+void ChatInfo::info_group_add_user(string groupname, string username)
+{
+	for (auto iter = group_info->begin(); iter != group_info->end(); iter++)
+	{
+		if (iter->name == groupname)
+		{
+			groupuser user;
+			user.name = username;
+			iter->l->push_back(user);
+		}
+	}
+}
