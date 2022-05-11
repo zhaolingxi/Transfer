@@ -63,7 +63,7 @@ void Server::listener_cb(struct evconnlistener* listener, evutil_socket_t fd, st
 void Server::client_handler(int fd)
 {
 	struct event_base* base = event_base_new();
-	struct bufferevent* bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	struct bufferevent* bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);//关闭tcp,释放对象
 	if (!bev)
 	{
 		cout << "bufferevent_socket_new error" << endl;
@@ -71,8 +71,66 @@ void Server::client_handler(int fd)
 
 	bufferevent_setcb(bev, read_cb, NULL, event_cb, NULL);
 	bufferevent_enable(bev, EV_READ);
-	event_base_dispatch(base);
+	event_base_dispatch(base);//阻塞
+	cout << "send from:"<< fd <<"bye!" << endl;
 	event_base_free(base);
+}
+
+void Server::send_file_handler(int length, int port, int* from_fd, int* to_fd)
+{
+	int sockfd =socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd ==-1)
+	{
+		return;
+	}
+
+	int opt = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+	// 接收缓冲区
+	int nRecvBuf = MAXSIZE;
+	setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (const char*)&nRecvBuf, sizeof(int));
+	//发送缓冲区
+	int nSendBuf = MAXSIZE;    //设置为1M
+	setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (const char*)&nSendBuf, sizeof(int));
+
+	struct sockaddr_in server_addr, client_addr;
+	memset(&server_addr, 0, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(port);
+	server_addr.sin_addr.s_addr = inet_addr(IP);
+
+
+	bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+	listen(sockfd, 10);
+
+	int len = sizeof(client_addr);
+	//接受发送客户端的连接请求
+	*from_fd = accept(sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len);
+	//接受接收客户端的连接请求
+	*to_fd = accept(sockfd, (struct sockaddr*)&client_addr, (socklen_t*)&len);
+
+	char buf[MAXSIZE] = { 0 };
+	size_t size, sum = 0;
+	while (1)
+	{
+		size = recv(*from_fd, buf, MAXSIZE, 0);
+		if (size <= 0 || size > MAXSIZE)
+		{
+			break;
+		}
+		sum += size;
+		send(*to_fd, buf, size, 0);
+		if (sum >= length)//传输完毕
+		{
+			break;
+		}
+		memset(buf, 0, MAXSIZE);
+	}
+
+	close(*from_fd);
+	close(*to_fd);
+	close(sockfd);
 }
 
 
@@ -121,21 +179,23 @@ void Server::read_cb(struct bufferevent* bev, void* ctx)
 	}
 	else if (cmd == "private_chat")//私聊
 	{
+		server_private_chat(bev, val);
 	}
 	else if (cmd == "group_chat")//群聊
 	{
-	}
-	else if (cmd == "add_group")//添加群
-	{
+		server_group_chat(bev, val);
 	}
 	else if (cmd == "get_group_member")//获取群成员
 	{
+		server_get_group_member(bev, val);
 	}
 	else if (cmd == "offline")//下线
 	{
+		server_offline(bev, val);
 	}
 	else if (cmd == "send_file")//发送文件
 	{
+		server_send_file(bev, val);
 	}
 
 	cout << buf << endl;
@@ -181,7 +241,6 @@ void Server::server_login(struct bufferevent* bev, Json::Value val)
 	chatdb->my_database_connect("user");
 	if (!chatdb->my_database_user_exist(val["user"].asString()))
 	{
-		cout << 1 << endl;
 		Json::Value resval;
 		resval["cmd"] = "login_reply";
 		resval["result"] = "usernotexist";
@@ -203,7 +262,6 @@ void Server::server_login(struct bufferevent* bev, Json::Value val)
 	}
 	if (!chatdb->my_database_user_password_correct(val["user"].asString(), val["password"].asString()))
 	{
-		cout << 2 << endl;
 		Json::Value resval;
 		resval["cmd"] = "login_reply";
 		resval["result"] = "usernotexist";
@@ -240,41 +298,73 @@ void Server::server_login(struct bufferevent* bev, Json::Value val)
 	string jsonStr = JsonToString(resval);
 	reply_client(bev, jsonStr);
 
-	int start = 0;
-	int pos = 0;
-	while (1)
+	/*int start = 0;
+	int pos = 0;*/
+	//while (1)
+	//{
+	//	int pos = fri.find('|', start);
+	//	if (pos == -1)
+	//	{
+	//		break;
+	//	}
+	//	string name = fri.substr(start, pos - start);
+	//	for (auto iter = chatlist->online_user->begin(); iter != chatlist->online_user->end(); iter++)
+	//	{
+	//		if (name == iter->name)
+	//		{
+	//			Json::Value resval;
+	//			resval["cmd"] = "friend_login";
+	//			resval["friend"] = val["user"].asString().c_str();
+
+	//			string jsonStr = JsonToString(resval);
+	//			reply_client(bev, jsonStr);
+	//		}
+	//	}
+	//	start = pos + 1;
+	//}
+	//string name = fri.substr(start, fri.size() - start);
+	//for (auto iter = chatlist->online_user->begin(); iter != chatlist->online_user->end(); iter++)
+	//{
+	//	if (name == iter->name)
+	//	{
+	//		Json::Value resval;
+	//		resval["cmd"] = "friend_login";
+	//		resval["friend"] = val["user"].asString().c_str();
+	//		string jsonStr = JsonToString(resval);
+	//		reply_client(bev, jsonStr);
+	//	}
+	//}
+
+
+	int start = 0, end = 0, flag = 1;
+	string name;
+	Json::Value resv;
+	while (flag)
 	{
-		int pos = fri.find('|', start);
-		if (pos == -1)
+		end = fri.find('|', start);
+		if (-1 == end)
 		{
-			break;
+			name = fri.substr(start, fri.size() - start);
+			flag = 0;
 		}
-		string name = fri.substr(start, pos - start);
-		for (auto iter = chatlist->online_user->begin(); iter != chatlist->online_user->end(); iter++)
+		else
+		{
+			name = fri.substr(start, end - start);
+		}
+
+		for (auto iter = chatlist->online_user->begin();
+			iter != chatlist->online_user->end(); iter++)
 		{
 			if (name == iter->name)
 			{
-				Json::Value resval;
-				resval["cmd"] = "friend_login";
-				resval["friend"] = val["user"].asString().c_str();
-
-				string jsonStr = JsonToString(resval);
-				reply_client(bev, jsonStr);
+				resv.clear();
+				resv["cmd"] = "friend_login";
+				resv["friend"] = val["user"].asString().c_str();;
+				string jsonStr = JsonToString(resv);
+				reply_client(iter->bev, jsonStr);
 			}
 		}
-		start = pos + 1;
-	}
-	string name = fri.substr(start, fri.size() - start);
-	for (auto iter = chatlist->online_user->begin(); iter != chatlist->online_user->end(); iter++)
-	{
-		if (name == iter->name)
-		{
-			Json::Value resval;
-			resval["cmd"] = "friend_login";
-			resval["friend"] = val["user"].asString().c_str();
-			string jsonStr = JsonToString(resval);
-			reply_client(bev, jsonStr);
-		}
+		start = end + 1;
 	}
 
 	chatdb->my_database_disconnect();
@@ -410,17 +500,198 @@ void Server::server_add_group(struct bufferevent* bev, Json::Value val)
 
 
 void Server::server_private_chat(struct bufferevent* bev, Json::Value val)
-{}
+{
+	struct bufferevent* to_bev=NULL;
+	chatlist->info_get_friend_bev(val["user_to"].asString(), to_bev);
+	if (NULL == to_bev)
+	{
+		Json::Value resval;
+		resval["cmd"] = "private_chat_reply";
+		resval["result"] = "offline";
+
+		string jsonStr = JsonToString(resval);
+		reply_client(bev, jsonStr);
+		return;
+	}
+	string jsonStr;
+	jsonStr = JsonToString(val);
+	reply_client(to_bev, jsonStr);
+
+	Json::Value resval1;
+	resval1["cmd"] = "private_chat_reply";
+	resval1["result"] = "success";
+
+	jsonStr = JsonToString(resval1);
+	reply_client(bev, jsonStr);
+}
 
 void Server::server_group_chat(struct bufferevent* bev, Json::Value val)
-{}
+{
+	for (auto it = chatlist->group_info->begin(); it != chatlist->group_info->end(); it++)
+	{
+		if (val["group"].asString() == it->name)
+		{
+			for (auto i = it->l->begin(); i != it->l->end(); i++)
+			{
+				struct bufferevent* to_bev = NULL;
+				chatlist->info_get_friend_bev(val["user_to"].asString(), to_bev);
+				if (to_bev != NULL)
+				{
+					string jsonStr = JsonToString(val);
+					reply_client(to_bev, jsonStr);
+				}
+			}
+		}
+	}
+
+	Json::Value v;
+	v["cmd"] = "group_chat_reply";
+	v["result"] = "success";
+
+	string jsonStr = JsonToString(val);
+	reply_client(bev, jsonStr);
+}
 
 void Server::server_get_group_member(struct bufferevent* bev, Json::Value val)
-{}
+{
+	string member = chatlist->info_get_group_member(val["group"].asString());
+
+	Json::Value v;
+	v["cmd"] = "get_group_member_reply";
+	v["member"] = member;
+	v["group"] = val["group"];
+
+	string jsonStr = JsonToString(val);
+	reply_client(bev, jsonStr);
+}
 
 void Server::server_offline(struct bufferevent* bev, Json::Value val)
-{}
+{
+	//从链表中删除用户
+	for (auto iter = chatlist->online_user->begin();
+		iter != chatlist->online_user->end(); iter++)
+	{
+		if (iter->name == val["user"].asString())
+		{
+			chatlist->online_user->erase(iter);
+			--iter;
+			break;
+		}
+	}
+
+	chatdb->my_database_connect("user");
+
+	//获取好友列表并且返回
+	string friend_list, group_list;
+	string name, s;
+	Json::Value v;
+
+	chatdb->my_database_get_friend_group(val["user"].asString(), friend_list, group_list);
+
+	//向好友发送下线提醒
+	int start = 0, end = 0, flag = 1;
+	while (flag)
+	{
+		end = friend_list.find('|', start);
+		if (-1 == end)
+		{
+			name = friend_list.substr(start, friend_list.size() - start);
+			flag = 0;
+		}
+		else
+		{
+			name = friend_list.substr(start, end - start);
+		}
+
+		for (auto iter = chatlist->online_user->begin();
+			iter != chatlist->online_user->end(); iter++)
+		{
+			if (name == iter->name)
+			{
+				v.clear();
+				v["cmd"] = "friend_offline";
+				v["friend"] = val["user"];
+				string jsonStr = JsonToString(v);
+				reply_client(iter->bev, jsonStr);
+			}
+		}
+		start = end + 1;
+	}
+
+	chatdb->my_database_disconnect();
+}
 
 void Server::server_send_file(struct bufferevent* bev, Json::Value val)
-{}
+{
+	Json::Value v;
+	string jsonStr;
+	//如果对方不在线，返回offline
+	struct bufferevent* to_bev = NULL;
+	chatlist->info_get_friend_bev(val["to_user"].asString(), to_bev);
+	if (NULL == to_bev)
+	{
+		v["cmd"] = "send_file_reply";
+		v["result"] = "offline";
+		jsonStr = JsonToString(v);
+		reply_client(bev, jsonStr);
+		return;
+	}
+
+	//启动新线程，创建文件服务器
+	int port = 8080, from_fd = 0, to_fd = 0;
+	thread send_file_thread(send_file_handler, val["length"].asInt(), port, &from_fd, &to_fd);
+	send_file_thread.detach();
+
+	//返回给发送客户端
+	v.clear();
+	v["cmd"] = "send_file_port_reply";
+	v["result"] = port;
+	jsonStr = JsonToString(v);
+	reply_client(bev, jsonStr);
+	
+	//等待连接
+	int count_time = 10;
+	while (from_fd<=0)
+	{
+		count_time--;
+		usleep(100000);
+		if (count_time<=0)
+		{
+			pthread_cancel(send_file_thread.native_handle());//取消
+			v.clear();
+			v["cmd"] = "send_file_port_reply";
+			v["result"] = "timeout";
+			jsonStr = JsonToString(v);
+			reply_client(bev, jsonStr);
+			return;
+		}
+	}
+
+	//返回给接受客户端
+	v.clear();
+	v["cmd"] = "send_file_port_reply";
+	v["result"] = port;
+	jsonStr = JsonToString(v);
+	reply_client(to_bev, jsonStr);
+
+	//等待连接
+	count_time = 10;
+	while (to_fd <= 0)
+	{
+		count_time--;
+		usleep(100000);
+		if (count_time <= 0)
+		{
+			pthread_cancel(send_file_thread.native_handle());//取消
+			v.clear();
+			v["cmd"] = "send_file_port_reply";
+			v["result"] = "timeout";
+			jsonStr = JsonToString(v);
+			reply_client(bev, jsonStr);
+			return;
+		}
+	}
+
+
+}
 

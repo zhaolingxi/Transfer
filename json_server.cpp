@@ -2,16 +2,16 @@
 
 std::string JsonToString(const Json::Value& root)
 {
-	/*static Json::Value def = []() {
+	static Json::Value def = []() {
 		Json::Value def;
 		Json::StreamWriterBuilder::setDefaults(&def);
 		def["emitUTF8"] = true;
 		return def;
-	}();*/
+	}();
 
-	Json::Value def;
+	/*Json::Value def;
 	Json::StreamWriterBuilder::setDefaults(&def);
-	def["emitUTF8"] = true;
+	def["emitUTF8"] = true;*/
 
 	std::ostringstream stream;
 	Json::StreamWriterBuilder stream_builder;

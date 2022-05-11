@@ -13,7 +13,7 @@
 #include<event2/listener.h>
 
 #include<thread>
-
+#include<unistd.h>
 #include<iostream>
 
 #include"chatlist.h"
@@ -21,7 +21,7 @@
 using namespace std;
 #define IP "172.17.239.60"
 #define PORT 8000
-
+#define MAXSIZE 1024 * 1024
 
 class Server
 {
@@ -44,6 +44,12 @@ private:
 	* @param fd：该客户端对应的fd
 	*/
 	static void client_handler(int fd);
+
+	/*
+	* 处理客户端文件传输的函数
+	* @param fd：该客户端对应的fd
+	*/
+	static void send_file_handler(int, int, int* from_fd, int* to_fd);
 
 
 	/*

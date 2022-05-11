@@ -106,3 +106,34 @@ void ChatInfo::info_group_add_user(string groupname, string username)
 		}
 	}
 }
+
+
+bool ChatInfo::info_get_friend_bev(string name, struct bufferevent* &obev)
+{
+	for (auto it = online_user->begin(); it != online_user->end(); it++)
+	{
+		if (it->name == name)
+		{
+			obev=it->bev;
+			return true;
+		}
+	}
+	return true;
+}
+
+string ChatInfo::info_get_group_member(string group)
+{
+	string member;
+	for (auto iter = group_info->begin(); iter != group_info->end(); iter++)
+	{
+		if (group == iter->name)
+		{
+			for (auto i = iter->l->begin(); i != iter->l->end(); i++)
+			{
+				member += i->name;
+				member += "|";
+			}
+		}
+	}
+	return member;
+}
