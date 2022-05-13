@@ -43,6 +43,7 @@ Server::~Server()
 
 void Server::reply_client(struct bufferevent* bev, string replystr)
 {
+	cout << replystr.length() << endl;
 	if (bufferevent_write(bev, replystr.c_str(), replystr.length()) < 0)
 	{
 		cout << "error, should reply_client:"<< replystr << endl;
@@ -133,6 +134,33 @@ void Server::send_file_handler(int length, int port, int* from_fd, int* to_fd)
 	close(sockfd);
 }
 
+void Server::GetRandomPort(int& port)
+{
+	int nStartPort = 8000;
+	int nEndPort = 8100;
+	/*while (1)
+	{
+		string psz_port_cmd;
+		int i_random_port = rand() % (nEndPort - nStartPort + 1) + nStartPort;
+		sprintf(psz_port_cmd, "netstat -an | grep :%d > /dev/null", i_random_port);
+		if (!system(psz_port_cmd))
+		{
+			port = i_random_port;
+		}
+	}*/
+
+	for (int i = nStartPort; i <= nEndPort; i++)
+	{
+		char psz_port_cmd[1024];
+		sprintf(psz_port_cmd, "netstat -an | grep :%d > /dev/null", i);
+		if (!system(psz_port_cmd))
+		{
+			port = i;
+			break;
+		}
+	}
+
+}
 
 void Server::read_cb(struct bufferevent* bev, void* ctx)
 {
@@ -242,43 +270,23 @@ void Server::server_login(struct bufferevent* bev, Json::Value val)
 	if (!chatdb->my_database_user_exist(val["user"].asString()))
 	{
 		Json::Value resval;
+		resval.clear();
 		resval["cmd"] = "login_reply";
-		resval["result"] = "usernotexist";
+		resval["result"] = "user_not_exist";
 
-		std::ostringstream os;
-		Json::StreamWriterBuilder writerBuilder;
-		Json::Value def;
-		def["emitUTF8"] = true;
-		writerBuilder.setDefaults(&def);
-		std::unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
-		jsonWriter->write(resval, &os);
-		string jsonStr = os.str();
-
-		if (bufferevent_write(bev, jsonStr.c_str(), jsonStr.length()) < 0)
-		{
-			cout << "bufferevent_write fail" << endl;
-		}
+		string jsonStr = JsonToString(resval);
+		reply_client(bev, jsonStr);
+		cout << jsonStr << endl;
 		return;
 	}
 	if (!chatdb->my_database_user_password_correct(val["user"].asString(), val["password"].asString()))
 	{
 		Json::Value resval;
 		resval["cmd"] = "login_reply";
-		resval["result"] = "usernotexist";
+		resval["result"] = "password_error";
 
-		std::ostringstream os;
-		Json::StreamWriterBuilder writerBuilder;
-		Json::Value def;
-		def["emitUTF8"] = true;
-		writerBuilder.setDefaults(&def);
-		std::unique_ptr<Json::StreamWriter> jsonWriter(writerBuilder.newStreamWriter());
-		jsonWriter->write(resval, &os);
-		string jsonStr = os.str();
-
-		if (bufferevent_write(bev, jsonStr.c_str(), jsonStr.length()) < 0)
-		{
-			cout << "bufferevent_write fail" << endl;
-		}
+		string jsonStr = JsonToString(resval);
+		reply_client(bev, jsonStr);
 		return;
 	}
 
@@ -376,32 +384,26 @@ void Server::server_add_friend(struct bufferevent* bev, Json::Value val)
 	if (!chatdb->my_database_user_exist(val["friend"].asString()))
 	{
 		Json::Value resval;
-		resval["cmd"] = "add_reply";
-		resval["result"] = "user_not_exist";
+		resval.clear();
+		resval["cmd"] ="add_reply";
+		resval["result"] ="user_not_exist";
 
 		string jsonStr = JsonToString(resval);
+		reply_client(bev, jsonStr);
 		cout << jsonStr << endl;
-
-		if (bufferevent_write(bev, jsonStr.c_str(), jsonStr.length() )< 0)
-		{
-			cout << "bufferevent_write fail" << endl;
-		}
 		return;
 	}
 	
 	if (chatdb->my_database_is_friend(val["user"].asString(), val["friend"].asString()))
 	{
 		Json::Value resval;
+		resval.clear();
 		resval["cmd"] = "add_reply";
 		resval["result"] = "already_friend";
 
 		string jsonStr = JsonToString(resval);
+		reply_client(bev, jsonStr);
 		cout << jsonStr << endl;
-
-		if (bufferevent_write(bev, jsonStr.c_str(), jsonStr.length()) < 0)
-		{
-			cout << "bufferevent_write fail" << endl;
-		}
 		return;
 	}
 	
@@ -411,10 +413,13 @@ void Server::server_add_friend(struct bufferevent* bev, Json::Value val)
 
 	//通知客户端
 	Json::Value resval1;
+	resval1.clear();
 	resval1["cmd"] = "add_reply";
 	resval1["result"] = "success";
+	resval1["friend"] = val["friend"];
 	string jsonStr = JsonToString(resval1);
 	reply_client(bev, jsonStr);
+	cout << jsonStr << endl;
 
 	for (auto iter=chatlist->online_user->begin();iter!= chatlist->online_user->end();iter++)
 	{
@@ -424,7 +429,8 @@ void Server::server_add_friend(struct bufferevent* bev, Json::Value val)
 			res1["cmd"] = "add_friend_reply";
 			res1["result"] = val["user"];
 			string jsonStr = JsonToString(res1);
-			reply_client(bev, jsonStr);
+			reply_client(iter->bev, jsonStr);
+			cout << jsonStr << endl;
 		}
 	}
 

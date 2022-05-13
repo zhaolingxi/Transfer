@@ -36,9 +36,9 @@ int main()
 
 	//char buf[320] = "{'cmd':'register','user':'小明','密码':'11111'};";
 	struct json_object* obj = json_object_new_object();
-	json_object_object_add(obj, "cmd", json_object_new_string("offline"));
+	json_object_object_add(obj, "cmd", json_object_new_string("add"));
 	json_object_object_add(obj, "user", json_object_new_string("小明"));
-	//json_object_object_add(obj, "password", json_object_new_string("11111"));
+	json_object_object_add(obj, "friend", json_object_new_string("小李"));
 
 	const char* buf = json_object_to_json_string(obj);
 

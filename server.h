@@ -53,6 +53,11 @@ private:
 
 
 	/*
+	* 获取随机未使用端口
+	*/
+	static void GetRandomPort(int & port);
+
+	/*
 	* 回复客户端
 	*/
 	static void reply_client(struct bufferevent* bev,string replystr);
